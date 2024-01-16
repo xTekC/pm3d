@@ -1,0 +1,25 @@
+##########################################
+#        Copyright (c) xTekC.            #
+#        Licensed under MPL-2.0.         #
+#        See LICENSE for details.        #
+# https://www.mozilla.org/en-US/MPL/2.0/ #
+##########################################
+
+status = [
+    "Build on ubuntu-latest (riscv64gc-unknown-linux-gnu)",
+    #"Build on ubuntu-latest (riscv64-linux-android)",
+    "Build on ubuntu-latest (aarch64-linux-android)",
+    "Build on ubuntu-latest (aarch64-unknown-linux-gnu)",
+    "Build on ubuntu-latest (aarch64-unknown-linux-musl)",
+    "Build on ubuntu-latest (x86_64-unknown-linux-gnu)",
+    "Build on ubuntu-latest (x86_64-unknown-linux-musl)",
+    "Build on ubuntu-latest (x86_64-unknown-freebsd)",
+    "Build on macos-latest (aarch64-apple-darwin)",
+    "Build on macos-latest (x86_64-apple-darwin)",
+    "Test",
+    "Check",
+]
+delete_merged_branches = true
+update_base_for_deletes = true
+cut_body_after = "<details>"
+commit_title = "chore(pull): merge ${PR_REFS}"

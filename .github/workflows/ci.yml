@@ -1,0 +1,167 @@
+##########################################
+#        Copyright (c) xTekC.            #
+#        Licensed under MPL-2.0.         #
+#        See LICENSE for details.        #
+# https://www.mozilla.org/en-US/MPL/2.0/ #
+##########################################
+
+name: Continuous Integration
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - staging # for bors
+      - trying # for bors
+  schedule:
+    - cron: "0 0 * * 0"
+
+jobs:
+  build:
+    name: Build on ${{ matrix.build.OS }} (${{ matrix.build.TARGET }})
+    runs-on: ${{ matrix.build.OS }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          - {
+              OS: ubuntu-latest,
+              TOOLCHAIN: stable,
+              TARGET: riscv64gc-unknown-linux-gnu,
+            }
+          # - {
+          #     OS: ubuntu-latest,
+          #     TOOLCHAIN: stable,
+          #     TARGET: riscv64-linux-android,
+          #   }
+          - {
+              OS: ubuntu-latest,
+              TOOLCHAIN: stable,
+              TARGET: aarch64-linux-android,
+            }
+          - {
+              OS: ubuntu-latest,
+              TOOLCHAIN: stable,
+              TARGET: aarch64-unknown-linux-gnu,
+            }
+          - {
+              OS: ubuntu-latest,
+              TOOLCHAIN: stable,
+              TARGET: aarch64-unknown-linux-musl,
+            }
+          - {
+              OS: ubuntu-latest,
+              TOOLCHAIN: stable,
+              TARGET: x86_64-unknown-linux-gnu,
+            }
+          - {
+              OS: ubuntu-latest,
+              TOOLCHAIN: stable,
+              TARGET: x86_64-unknown-linux-musl,
+            }
+          - {
+              OS: ubuntu-latest,
+              TOOLCHAIN: stable,
+              TARGET: x86_64-unknown-freebsd,
+            }
+          - {
+              OS: macos-latest,
+              TOOLCHAIN: stable,
+              TARGET: aarch64-apple-darwin,
+            }
+          - { OS: macos-latest, 
+              TOOLCHAIN: stable, 
+              TARGET: x86_64-apple-darwin,
+            }
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.build.TOOLCHAIN }}
+
+      - name: Install target
+        run: rustup target add ${{ matrix.build.TARGET }}
+
+      - name: Build for ${{ matrix.build.TARGET }}
+        if: >-
+          ${{ matrix.build.TARGET != 'riscv64gc-unknown-linux-gnu' &&
+          matrix.build.TARGET != 'riscv64-linux-android' &&
+          matrix.build.TARGET != 'aarch64-linux-android' &&
+          matrix.build.TARGET != 'aarch64-unknown-linux-gnu' &&
+          matrix.build.TARGET != 'aarch64-unknown-linux-musl' &&
+          matrix.build.TARGET != 'x86_64-unknown-freebsd' }}
+        run: |
+          cargo build --locked --target ${{ matrix.build.TARGET }} --verbose
+
+      - name: Build (with cross) for ${{ matrix.build.TARGET }}
+        if: >-
+          ${{ matrix.build.TARGET == 'riscv64gc-unknown-linux-gnu' ||
+          matrix.build.TARGET == 'aarch64-unknown-linux-gnu' ||
+          matrix.build.TARGET == 'aarch64-unknown-linux-musl' ||
+          matrix.build.TARGET == 'x86_64-unknown-freebsd' }}
+        run: |
+          cargo install cross@0.2.5  
+          cross build --locked --target ${{ matrix.build.TARGET }} --verbose
+
+      - name: Build (with specific cross) for Android targets
+        if: >-
+          ${{ matrix.build.TARGET == 'riscv64-linux-android' ||
+          matrix.build.TARGET == 'aarch64-linux-android' }}
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross --rev bfc59f0dcc0bd71f14199d514b096dcce28a5c43
+          cross build --locked --target ${{ matrix.build.TARGET }} --verbose
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run tests
+        run: cargo test
+
+  lint:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v3
+      - name: Checkout the repository
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run rustfmt
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --tests -- -D warnings
+
+      - name: Run cargo-audit
+        run: |
+          cargo install cargo-audit
+          cargo audit
+        env:
+          CARGO_AUDIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
