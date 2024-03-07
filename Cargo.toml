@@ -25,7 +25,7 @@ name = "pm3d"
 path = "src/bin/main.rs"
 
 [dependencies]
-clap = { version = "4.4.17", features = ["derive"] }
+clap = { version = "4.5.2", features = ["derive"] }
 serde = "1.0.195"
 surrealdb = "1.1.0"
 tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
